@@ -1,5 +1,6 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/foundation.dart';
 
 class NotificationService {
   static final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
@@ -13,17 +14,16 @@ class NotificationService {
       alert: true,
       announcement: true,
       badge: true,
-      carryForwardToken: true,
       criticalAlert: false,
       provisional: false,
       sound: true,
     );
 
-    print('User granted notification permission: ${settings.authorizationStatus}');
+    debugPrint('User granted notification permission: ${settings.authorizationStatus}');
 
     // Subscribe to topic
     await _firebaseMessaging.subscribeToTopic('water_alert');
-    print('Subscribed to water_alert topic');
+    debugPrint('Subscribed to water_alert topic');
 
     // Initialize local notifications for foreground
     await _initLocalNotifications();
@@ -33,20 +33,20 @@ class NotificationService {
 
     // Handle foreground messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      print('Foreground message: ${message.notification?.title}');
+      debugPrint('Foreground message: ${message.notification?.title}');
       _showLocalNotification(message);
     });
 
     // Handle message when app is terminated but just opened
     FirebaseMessaging.instance.getInitialMessage().then((message) {
       if (message != null) {
-        print('App opened from terminated state: ${message.notification?.title}');
+        debugPrint('App opened from terminated state: ${message.notification?.title}');
       }
     });
 
     // Handle notification tap
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      print('Notification tapped: ${message.notification?.title}');
+      debugPrint('Notification tapped: ${message.notification?.title}');
     });
   }
 
@@ -62,8 +62,8 @@ class NotificationService {
 
     // Create notification channel for Android 8+
     const AndroidNotificationChannel channel = AndroidNotificationChannel(
-      id: 'water_alert_channel',
-      name: 'Water Level Alert',
+      'water_alert_channel',
+      'Water Level Alert',
       description: 'Alerts for water level sensor thresholds',
       importance: Importance.high,
       enableVibration: true,
@@ -78,9 +78,8 @@ class NotificationService {
 
   static Future<void> _showLocalNotification(RemoteMessage message) async {
     final notification = message.notification;
-    final android = message.android;
 
-    if (notification != null && android != null) {
+    if (notification != null) {
       await _flutterLocalNotificationsPlugin.show(
         notification.hashCode,
         notification.title,
@@ -102,7 +101,7 @@ class NotificationService {
   }
 
   static Future<void> _backgroundMessageHandler(RemoteMessage message) async {
-    print('Background message: ${message.notification?.title}');
+    debugPrint('Background message: ${message.notification?.title}');
     // FCM automatically shows notification in background
     // This handler is for custom logic if needed
   }
