@@ -21,9 +21,9 @@ function extractDeviceId(topic) {
  *   "sensor_min": 280,   // raw ADC/cm value from minimum-level sensor
  *   "sensor_max": 320    // raw ADC/cm value from maximum-level sensor
  * }
- * Status rule: value > 300 => "HIGH", value <= 300 => "LOW"
+ * Status rule: value > 500 => "HIGH", value <= 500 => "LOW"
  */
-const THRESHOLD = 300;
+const THRESHOLD = 500;
 
 function parsePayload(raw) {
     try {

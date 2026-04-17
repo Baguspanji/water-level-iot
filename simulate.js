@@ -32,39 +32,39 @@ const SCENARIO = arg('scenario', 'random');
 
 // ── Sensor logic ──────────────────────────────────────────────────
 // Aturan:
-//   - Jika sensor_min < 300 (LOW)  → sensor_max PASTI juga < 300 (LOW)
-//   - Jika sensor_min > 300 (HIGH) → sensor_max BOLEH > 300 atau < 300
-//   - Tidak mungkin: sensor_min < 300 tapi sensor_max > 300
-const THRESHOLD = 300;
+//   - Jika sensor_min < 500 (LOW)  → sensor_max PASTI juga < 500 (LOW)
+//   - Jika sensor_min > 500 (HIGH) → sensor_max BOLEH > 500 atau < 500
+//   - Tidak mungkin: sensor_min < 500 tapi sensor_max > 500
+const THRESHOLD = 500;
 
 const scenarios = {
     // Keduanya LOW (air tidak ada / sangat rendah)
     both_low: () => {
-        const sMin = rand(100, 295);
-        return { sensor_min: sMin, sensor_max: rand(100, 295) };
+        const sMin = rand(100, 495);
+        return { sensor_min: sMin, sensor_max: rand(100, 495) };
     },
     // Keduanya HIGH (air penuh / banjir)
     both_high: () => ({
-        sensor_min: rand(305, 500),
-        sensor_max: rand(305, 500),
+        sensor_min: rand(505, 1000),
+        sensor_max: rand(505, 1000),
     }),
     // sensor_min HIGH, sensor_max LOW (air di tengah-tengah)
     min_high_max_low: () => ({
-        sensor_min: rand(305, 450),
-        sensor_max: rand(100, 295),
+        sensor_min: rand(505, 1000),
+        sensor_max: rand(100, 495),
     }),
     // Acak, mengikuti aturan di atas
     random: () => {
         const r = Math.random();
         if (r < 0.33) {
             // both LOW
-            return { sensor_min: rand(100, 295), sensor_max: rand(100, 295) };
+            return { sensor_min: rand(100, 495), sensor_max: rand(100, 495) };
         } else if (r < 0.66) {
             // both HIGH
-            return { sensor_min: rand(305, 500), sensor_max: rand(305, 500) };
+            return { sensor_min: rand(505, 1000), sensor_max: rand(505, 1000) };
         } else {
             // min HIGH, max LOW
-            return { sensor_min: rand(305, 450), sensor_max: rand(100, 295) };
+            return { sensor_min: rand(505, 1000), sensor_max: rand(100, 495) };
         }
     },
 };
