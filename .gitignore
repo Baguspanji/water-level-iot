@@ -1,3 +1,5 @@
 node_modules/
 data/
 .env
+serviceAccountKey.json
+alert_water_level/android/app/google-services.json
