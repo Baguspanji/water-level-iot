@@ -1,5 +1,6 @@
 const mqtt = require('mqtt');
 const { insertReading } = require('./database');
+const { sendAlert } = require('./notificationService');
 
 let client = null;
 const TOPIC_SENSOR = process.env.MQTT_TOPIC_SENSOR || 'water/sensor/#';
@@ -84,6 +85,19 @@ function connect() {
         try {
             const id = await insertReading(deviceId, payload);
             console.log(`[DB]   Saved reading #${id} for device "${deviceId}"`);
+
+            // Check if alert threshold exceeded
+            if (payload.sensor_min > THRESHOLD) {
+                sendAlert(deviceId, payload.sensor_min, 'HIGH').catch(err =>
+                    console.error('[ALERT] Failed to send alert for sensor_min:', err.message)
+                );
+            }
+            if (payload.sensor_max > THRESHOLD) {
+                sendAlert(deviceId, payload.sensor_max, 'HIGH').catch(err =>
+                    console.error('[ALERT] Failed to send alert for sensor_max:', err.message)
+                );
+            }
+
             // broadcast to SSE clients (lazy require to avoid circular dep)
             try { require('../index').broadcastReading(deviceId, payload); } catch (_) { }
         } catch (err) {
