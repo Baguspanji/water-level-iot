@@ -1,15 +1,59 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'firebase_options.dart';
 import 'services/notification_service.dart';
+
+/// Top-level background message handler — runs in separate isolate.
+/// Must be top-level (not inside a class) for FCM to invoke it.
+@pragma('vm:entry-point')
+Future<void> firebaseBackgroundMessageHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Show local notification manually (FCM only auto-shows if notification payload exists)
+  final plugin = FlutterLocalNotificationsPlugin();
+  await plugin.initialize(
+    const InitializationSettings(
+      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+    ),
+  );
+
+  final notification = message.notification;
+  if (notification != null) {
+    await plugin.show(
+      notification.hashCode,
+      notification.title,
+      notification.body,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'water_alert_channel',
+          'Water Level Alert',
+          channelDescription: 'Alerts for water level sensors',
+          importance: Importance.high,
+          priority: Priority.high,
+          enableVibration: true,
+        ),
+      ),
+      payload: message.data.toString(),
+    );
+  }
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  // Initialize Firebase (google-services.json may already init natively)
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } on FirebaseException catch (e) {
+    if (e.code != 'duplicate-app') rethrow;
+  }
+
+  // Register background handler BEFORE runApp
+  FirebaseMessaging.onBackgroundMessage(firebaseBackgroundMessageHandler);
 
   // Initialize notifications
   await NotificationService.init();

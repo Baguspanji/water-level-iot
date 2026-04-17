@@ -36,7 +36,7 @@
 **Files:**
 - Modify: `package.json`
 
-- [ ] **Step 1: Install dependency**
+- [x] **Step 1: Install dependency**
 
 ```bash
 cd /Users/baguspanji/Workspace/water-level-server
@@ -45,7 +45,7 @@ npm install firebase-admin
 
 Expected: firebase-admin added to package.json
 
-- [ ] **Step 2: Verify installation**
+- [x] **Step 2: Verify installation**
 
 ```bash
 npm list firebase-admin
@@ -53,7 +53,7 @@ npm list firebase-admin
 
 Expected: firebase-admin@latest shown
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add package.json package-lock.json
@@ -67,7 +67,7 @@ git commit -m "feat: add firebase-admin dependency for FCM"
 **Files:**
 - Create: `src/notificationService.js`
 
-- [ ] **Step 1: Create file with Firebase init and sendAlert function**
+- [x] **Step 1: Create file with Firebase init and sendAlert function**
 
 ```javascript
 const admin = require('firebase-admin');
@@ -79,7 +79,7 @@ let initialized = false;
 
 function initializeFirebase() {
   if (initialized) return;
-  
+
   try {
     admin.initializeApp({
       credential: admin.credential.cert(require(serviceAccountPath)),
@@ -105,20 +105,20 @@ const COOLDOWN_MS = 60 * 1000; // 60 seconds
  */
 async function sendAlert(deviceId, value, status) {
   initializeFirebase();
-  
+
   // Check cooldown
   const now = Date.now();
   const lastSent = cooldownMap.get(deviceId);
-  
+
   if (lastSent && (now - lastSent) < COOLDOWN_MS) {
     console.log(`[FCM] Cooldown active for ${deviceId}, skipping (${Math.round((COOLDOWN_MS - (now - lastSent)) / 1000)}s remaining)`);
     return false;
   }
-  
+
   try {
     // Update cooldown
     cooldownMap.set(deviceId, now);
-    
+
     // Build message
     const message = {
       notification: {
@@ -140,7 +140,7 @@ async function sendAlert(deviceId, value, status) {
       },
       topic: 'water_alert',
     };
-    
+
     // Send to topic
     const response = await admin.messaging().send(message);
     console.log(`[FCM] Alert sent to topic 'water_alert' for ${deviceId}: ${response}`);
@@ -156,7 +156,7 @@ async function sendAlert(deviceId, value, status) {
 module.exports = { sendAlert, initializeFirebase };
 ```
 
-- [ ] **Step 2: Verify file exists**
+- [x] **Step 2: Verify file exists**
 
 ```bash
 test -f /Users/baguspanji/Workspace/water-level-server/src/notificationService.js && echo "File created"
@@ -164,7 +164,7 @@ test -f /Users/baguspanji/Workspace/water-level-server/src/notificationService.j
 
 Expected: "File created"
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/notificationService.js
@@ -178,7 +178,7 @@ git commit -m "feat: create Firebase notification service with cooldown"
 **Files:**
 - Modify: `src/mqttClient.js`
 
-- [ ] **Step 1: Check current mqttClient structure**
+- [x] **Step 1: Check current mqttClient structure**
 
 ```bash
 head -50 /Users/baguspanji/Workspace/water-level-server/src/mqttClient.js
@@ -186,7 +186,7 @@ head -50 /Users/baguspanji/Workspace/water-level-server/src/mqttClient.js
 
 Read output to find where database.insertSensorReading is called
 
-- [ ] **Step 2: Add import and call sendAlert after database insert**
+- [x] **Step 2: Add import and call sendAlert after database insert**
 
 At top of file, add:
 ```javascript
@@ -201,7 +201,7 @@ if (value > 500) {
   // Determine status
   const status = value > 500 ? 'HIGH' : 'NORMAL';
   // Send FCM alert (non-blocking)
-  sendAlert(deviceId, value, status).catch(err => 
+  sendAlert(deviceId, value, status).catch(err =>
     console.error('Failed to send alert:', err.message)
   );
 }
@@ -209,7 +209,7 @@ if (value > 500) {
 
 Expected: Code modification complete, file saves
 
-- [ ] **Step 3: Verify syntax**
+- [x] **Step 3: Verify syntax**
 
 ```bash
 node -c /Users/baguspanji/Workspace/water-level-server/src/mqttClient.js
@@ -217,7 +217,7 @@ node -c /Users/baguspanji/Workspace/water-level-server/src/mqttClient.js
 
 Expected: No output (syntax OK)
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/mqttClient.js
@@ -231,7 +231,7 @@ git commit -m "feat: call sendAlert on sensor HIGH threshold"
 **Files:**
 - Modify: `.gitignore`
 
-- [ ] **Step 1: Add Firebase credential files to .gitignore**
+- [x] **Step 1: Add Firebase credential files to .gitignore**
 
 Append to `.gitignore`:
 ```
@@ -239,7 +239,7 @@ serviceAccountKey.json
 alert_water_level/android/app/google-services.json
 ```
 
-- [ ] **Step 2: Verify no sensitive files in git**
+- [x] **Step 2: Verify no sensitive files in git**
 
 ```bash
 git status | grep -E "serviceAccount|google-services"
@@ -247,7 +247,7 @@ git status | grep -E "serviceAccount|google-services"
 
 Expected: No matches (files not staged)
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add .gitignore
@@ -263,7 +263,7 @@ git commit -m "chore: add Firebase credential files to gitignore"
 **Files:**
 - Modify: `alert_water_level/pubspec.yaml`
 
-- [ ] **Step 1: Add Firebase dependencies to pubspec.yaml**
+- [x] **Step 1: Add Firebase dependencies to pubspec.yaml**
 
 In `dependencies:` section, add:
 ```yaml
@@ -272,7 +272,7 @@ In `dependencies:` section, add:
   flutter_local_notifications: ^17.1.0
 ```
 
-- [ ] **Step 2: Install packages**
+- [x] **Step 2: Install packages**
 
 ```bash
 cd /Users/baguspanji/Workspace/water-level-server/alert_water_level
@@ -281,7 +281,7 @@ flutter pub get
 
 Expected: All packages installed successfully
 
-- [ ] **Step 3: Verify installation**
+- [x] **Step 3: Verify installation**
 
 ```bash
 flutter pub list | grep -E "firebase_core|firebase_messaging|flutter_local_notifications"
@@ -289,7 +289,7 @@ flutter pub list | grep -E "firebase_core|firebase_messaging|flutter_local_notif
 
 Expected: All three packages listed
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 cd /Users/baguspanji/Workspace/water-level-server
@@ -304,13 +304,13 @@ git commit -m "feat: add Firebase and notification dependencies to Flutter"
 **Files:**
 - Create: `alert_water_level/lib/services/notification_service.dart`
 
-- [ ] **Step 1: Create services directory**
+- [x] **Step 1: Create services directory**
 
 ```bash
 mkdir -p /Users/baguspanji/Workspace/water-level-server/alert_water_level/lib/services
 ```
 
-- [ ] **Step 2: Create notification_service.dart**
+- [x] **Step 2: Create notification_service.dart**
 
 ```dart
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -318,7 +318,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class NotificationService {
   static final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
-  
+
   static final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
@@ -424,7 +424,7 @@ class NotificationService {
 }
 ```
 
-- [ ] **Step 3: Verify file exists**
+- [x] **Step 3: Verify file exists**
 
 ```bash
 test -f /Users/baguspanji/Workspace/water-level-server/alert_water_level/lib/services/notification_service.dart && echo "Created"
@@ -432,7 +432,7 @@ test -f /Users/baguspanji/Workspace/water-level-server/alert_water_level/lib/ser
 
 Expected: "Created"
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add alert_water_level/lib/services/notification_service.dart
@@ -446,7 +446,7 @@ git commit -m "feat: create notification service with FCM handlers"
 **Files:**
 - Modify: `alert_water_level/lib/main.dart`
 
-- [ ] **Step 1: Add imports and init code**
+- [x] **Step 1: Add imports and init code**
 
 Replace entire `main.dart` with:
 
@@ -543,7 +543,7 @@ class _MyHomePageState extends State<MyHomePage> {
 }
 ```
 
-- [ ] **Step 2: Verify syntax**
+- [x] **Step 2: Verify syntax**
 
 ```bash
 cd /Users/baguspanji/Workspace/water-level-server/alert_water_level && flutter analyze
@@ -551,7 +551,7 @@ cd /Users/baguspanji/Workspace/water-level-server/alert_water_level && flutter a
 
 Expected: No errors (may have warnings about unused code)
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add alert_water_level/lib/main.dart
@@ -565,13 +565,13 @@ git commit -m "feat: initialize Firebase and notification service in main"
 **Files:**
 - Modify: `alert_water_level/android/app/build.gradle.kts`
 
-- [ ] **Step 1: Check current build.gradle.kts**
+- [x] **Step 1: Check current build.gradle.kts**
 
 ```bash
 head -30 /Users/baguspanji/Workspace/water-level-server/alert_water_level/android/app/build.gradle.kts
 ```
 
-- [ ] **Step 2: Add Google Services plugin**
+- [x] **Step 2: Add Google Services plugin**
 
 At top of file, after `plugins {` block, ensure:
 
@@ -584,7 +584,7 @@ plugins {
 }
 ```
 
-- [ ] **Step 3: Verify plugins section**
+- [x] **Step 3: Verify plugins section**
 
 ```bash
 grep -n "com.google.gms.google-services" /Users/baguspanji/Workspace/water-level-server/alert_water_level/android/app/build.gradle.kts
@@ -592,7 +592,7 @@ grep -n "com.google.gms.google-services" /Users/baguspanji/Workspace/water-level
 
 Expected: Line number shown if added correctly
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add alert_water_level/android/app/build.gradle.kts
@@ -606,13 +606,13 @@ git commit -m "feat: add Google Services plugin to Android gradle"
 **Files:**
 - Modify: `alert_water_level/android/build.gradle.kts`
 
-- [ ] **Step 1: Check buildscript**
+- [x] **Step 1: Check buildscript**
 
 ```bash
 head -40 /Users/baguspanji/Workspace/water-level-server/alert_water_level/android/build.gradle.kts
 ```
 
-- [ ] **Step 2: Add Google Services dependency to buildscript**
+- [x] **Step 2: Add Google Services dependency to buildscript**
 
 In `buildscript { dependencies { } }`, add:
 
@@ -639,7 +639,7 @@ buildscript {
 }
 ```
 
-- [ ] **Step 3: Verify syntax**
+- [x] **Step 3: Verify syntax**
 
 ```bash
 grep "google-services" /Users/baguspanji/Workspace/water-level-server/alert_water_level/android/build.gradle.kts
@@ -647,7 +647,7 @@ grep "google-services" /Users/baguspanji/Workspace/water-level-server/alert_wate
 
 Expected: classpath line shown
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add alert_water_level/android/build.gradle.kts
@@ -661,7 +661,7 @@ git commit -m "feat: add Google Services classpath to project gradle"
 **Files:**
 - Create: `alert_water_level/lib/firebase_options.dart`
 
-- [ ] **Step 1: Create file with default options**
+- [x] **Step 1: Create file with default options**
 
 ```dart
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
@@ -717,7 +717,7 @@ class DefaultFirebaseOptions {
 
 Note: These values will be overridden by google-services.json, but this file is required.
 
-- [ ] **Step 2: Verify file exists**
+- [x] **Step 2: Verify file exists**
 
 ```bash
 test -f /Users/baguspanji/Workspace/water-level-server/alert_water_level/lib/firebase_options.dart && echo "Created"
@@ -725,7 +725,7 @@ test -f /Users/baguspanji/Workspace/water-level-server/alert_water_level/lib/fir
 
 Expected: "Created"
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add alert_water_level/lib/firebase_options.dart
@@ -739,13 +739,13 @@ git commit -m "feat: add firebase_options.dart with Android config"
 **Files:**
 - Check: `alert_water_level/android/app/src/main/AndroidManifest.xml`
 
-- [ ] **Step 1: Check manifest for FCM permissions**
+- [x] **Step 1: Check manifest for FCM permissions**
 
 ```bash
 grep -E "POST_NOTIFICATIONS|INTERNET" /Users/baguspanji/Workspace/water-level-server/alert_water_level/android/app/src/main/AndroidManifest.xml
 ```
 
-- [ ] **Step 2: Ensure permissions exist (add if missing)**
+- [x] **Step 2: Ensure permissions exist (add if missing)**
 
 Manifest should contain:
 ```xml
@@ -755,7 +755,7 @@ Manifest should contain:
 
 Add these before `<application>` tag if missing.
 
-- [ ] **Step 3: Commit if changes made**
+- [x] **Step 3: Commit if changes made**
 
 ```bash
 git add alert_water_level/android/app/src/main/AndroidManifest.xml
@@ -813,7 +813,7 @@ Create project: "water-level-server"
 
 In Firebase Console → Project Settings → Android:
 - Package name: `com.jongjava.waterlevel.alert_water_level`
-- Get SHA-1: 
+- Get SHA-1:
   ```bash
   cd /Users/baguspanji/Workspace/water-level-server/alert_water_level/android && ./gradlew signingReport
   ```

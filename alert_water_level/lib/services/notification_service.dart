@@ -6,26 +6,31 @@ class NotificationService {
   // Notification constants
   static const String _channelId = 'water_alert_channel';
   static const String _channelName = 'Water Level Alert';
-  static const String _channelDescription = 'Alerts for water level sensor thresholds';
+  static const String _channelDescription =
+      'Alerts for water level sensor thresholds';
   static const String _topicName = 'water_alert';
 
-  static final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
+  static final FirebaseMessaging _firebaseMessaging =
+      FirebaseMessaging.instance;
 
-  static final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin =
-      FlutterLocalNotificationsPlugin();
+  static final FlutterLocalNotificationsPlugin
+  _flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
   static Future<void> init() async {
     // Request notification permission
     try {
-      final NotificationSettings settings = await _firebaseMessaging.requestPermission(
-        alert: true,
-        announcement: true,
-        badge: true,
-        criticalAlert: false,
-        provisional: false,
-        sound: true,
+      final NotificationSettings settings = await _firebaseMessaging
+          .requestPermission(
+            alert: true,
+            announcement: true,
+            badge: true,
+            criticalAlert: false,
+            provisional: false,
+            sound: true,
+          );
+      debugPrint(
+        'User granted notification permission: ${settings.authorizationStatus}',
       );
-      debugPrint('User granted notification permission: ${settings.authorizationStatus}');
     } catch (e) {
       debugPrint('Error requesting notification permission: $e');
     }
@@ -46,14 +51,6 @@ class NotificationService {
       debugPrint('Error initializing local notifications: $e');
     }
 
-    // Handle background messages
-    try {
-      FirebaseMessaging.onBackgroundMessage(_backgroundMessageHandler);
-      debugPrint('Background message handler registered');
-    } catch (e) {
-      debugPrint('Error registering background message handler: $e');
-    }
-
     // Handle foreground messages
     try {
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
@@ -69,7 +66,9 @@ class NotificationService {
     try {
       FirebaseMessaging.instance.getInitialMessage().then((message) {
         if (message != null) {
-          debugPrint('App opened from terminated state: ${message.notification?.title}');
+          debugPrint(
+            'App opened from terminated state: ${message.notification?.title}',
+          );
         }
       });
       debugPrint('Initial message handler registered');
@@ -110,7 +109,8 @@ class NotificationService {
 
     await _flutterLocalNotificationsPlugin
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(channel);
   }
 
@@ -136,11 +136,5 @@ class NotificationService {
         payload: message.data.toString(),
       );
     }
-  }
-
-  static Future<void> _backgroundMessageHandler(RemoteMessage message) async {
-    debugPrint('Background message: ${message.notification?.title}');
-    // FCM automatically shows notification in background
-    // This handler is for custom logic if needed
   }
 }
