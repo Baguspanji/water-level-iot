@@ -3,6 +3,12 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/foundation.dart';
 
 class NotificationService {
+  // Notification constants
+  static const String _channelId = 'water_alert_channel';
+  static const String _channelName = 'Water Level Alert';
+  static const String _channelDescription = 'Alerts for water level sensor thresholds';
+  static const String _topicName = 'water_alert';
+
   static final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
 
   static final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin =
@@ -10,44 +16,76 @@ class NotificationService {
 
   static Future<void> init() async {
     // Request notification permission
-    NotificationSettings settings = await _firebaseMessaging.requestPermission(
-      alert: true,
-      announcement: true,
-      badge: true,
-      criticalAlert: false,
-      provisional: false,
-      sound: true,
-    );
-
-    debugPrint('User granted notification permission: ${settings.authorizationStatus}');
+    try {
+      final NotificationSettings settings = await _firebaseMessaging.requestPermission(
+        alert: true,
+        announcement: true,
+        badge: true,
+        criticalAlert: false,
+        provisional: false,
+        sound: true,
+      );
+      debugPrint('User granted notification permission: ${settings.authorizationStatus}');
+    } catch (e) {
+      debugPrint('Error requesting notification permission: $e');
+    }
 
     // Subscribe to topic
-    await _firebaseMessaging.subscribeToTopic('water_alert');
-    debugPrint('Subscribed to water_alert topic');
+    try {
+      await _firebaseMessaging.subscribeToTopic(_topicName);
+      debugPrint('Subscribed to $_topicName topic');
+    } catch (e) {
+      debugPrint('Error subscribing to topic: $e');
+    }
 
     // Initialize local notifications for foreground
-    await _initLocalNotifications();
+    try {
+      await _initLocalNotifications();
+      debugPrint('Local notifications initialized successfully');
+    } catch (e) {
+      debugPrint('Error initializing local notifications: $e');
+    }
 
     // Handle background messages
-    FirebaseMessaging.onBackgroundMessage(_backgroundMessageHandler);
+    try {
+      FirebaseMessaging.onBackgroundMessage(_backgroundMessageHandler);
+      debugPrint('Background message handler registered');
+    } catch (e) {
+      debugPrint('Error registering background message handler: $e');
+    }
 
     // Handle foreground messages
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      debugPrint('Foreground message: ${message.notification?.title}');
-      _showLocalNotification(message);
-    });
+    try {
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        debugPrint('Foreground message: ${message.notification?.title}');
+        _showLocalNotification(message);
+      });
+      debugPrint('Foreground message listener registered');
+    } catch (e) {
+      debugPrint('Error registering foreground message listener: $e');
+    }
 
     // Handle message when app is terminated but just opened
-    FirebaseMessaging.instance.getInitialMessage().then((message) {
-      if (message != null) {
-        debugPrint('App opened from terminated state: ${message.notification?.title}');
-      }
-    });
+    try {
+      FirebaseMessaging.instance.getInitialMessage().then((message) {
+        if (message != null) {
+          debugPrint('App opened from terminated state: ${message.notification?.title}');
+        }
+      });
+      debugPrint('Initial message handler registered');
+    } catch (e) {
+      debugPrint('Error registering initial message handler: $e');
+    }
 
     // Handle notification tap
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      debugPrint('Notification tapped: ${message.notification?.title}');
-    });
+    try {
+      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+        debugPrint('Notification tapped: ${message.notification?.title}');
+      });
+      debugPrint('Message opened app listener registered');
+    } catch (e) {
+      debugPrint('Error registering message opened app listener: $e');
+    }
   }
 
   static Future<void> _initLocalNotifications() async {
@@ -62,9 +100,9 @@ class NotificationService {
 
     // Create notification channel for Android 8+
     const AndroidNotificationChannel channel = AndroidNotificationChannel(
-      'water_alert_channel',
-      'Water Level Alert',
-      description: 'Alerts for water level sensor thresholds',
+      _channelId,
+      _channelName,
+      description: _channelDescription,
       importance: Importance.high,
       enableVibration: true,
       sound: RawResourceAndroidNotificationSound('notification'),
@@ -86,9 +124,9 @@ class NotificationService {
         notification.body,
         NotificationDetails(
           android: AndroidNotificationDetails(
-            'water_alert_channel',
-            'Water Level Alert',
-            channelDescription: 'Alerts for water level sensors',
+            _channelId,
+            _channelName,
+            channelDescription: _channelDescription,
             importance: Importance.high,
             priority: Priority.high,
             showWhen: true,
