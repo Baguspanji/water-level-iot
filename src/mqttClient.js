@@ -1,0 +1,105 @@
+const mqtt = require('mqtt');
+const { insertReading } = require('./database');
+
+let client = null;
+const TOPIC_SENSOR = process.env.MQTT_TOPIC_SENSOR || 'water/sensor/#';
+
+/**
+ * Parse MQTT topic to extract device ID.
+ * Expected topic pattern: water/sensor/<device_id>
+ * e.g.  water/sensor/esp32-001
+ */
+function extractDeviceId(topic) {
+    const parts = topic.split('/');
+    return parts[2] || 'unknown';
+}
+
+/**
+ * Parse incoming MQTT message payload.
+ * Expected JSON from ESP32:
+ * {
+ *   "sensor_min": 280,   // raw ADC/cm value from minimum-level sensor
+ *   "sensor_max": 320    // raw ADC/cm value from maximum-level sensor
+ * }
+ * Status rule: value > 300 => "HIGH", value <= 300 => "LOW"
+ */
+const THRESHOLD = 300;
+
+function parsePayload(raw) {
+    try {
+        const json = JSON.parse(raw.toString());
+        const sMin = parseFloat(json.sensor_min);
+        const sMax = parseFloat(json.sensor_max);
+        if (isNaN(sMin) || isNaN(sMax)) return null;
+        return {
+            sensor_min: sMin,
+            sensor_min_status: sMin > THRESHOLD ? 'HIGH' : 'LOW',
+            sensor_max: sMax,
+            sensor_max_status: sMax > THRESHOLD ? 'HIGH' : 'LOW',
+        };
+    } catch {
+        return null;
+    }
+}
+
+function connect() {
+    const brokerUrl = process.env.MQTT_BROKER || 'mqtt://localhost:1883';
+    const clientId = process.env.MQTT_CLIENT_ID || `water-server-${Date.now()}`;
+
+    const options = {
+        clientId,
+        clean: true,
+        reconnectPeriod: 5000,
+        connectTimeout: 10000,
+    };
+
+    if (process.env.MQTT_USERNAME) options.username = process.env.MQTT_USERNAME;
+    if (process.env.MQTT_PASSWORD) options.password = process.env.MQTT_PASSWORD;
+
+    console.log(`[MQTT] Connecting to broker: ${brokerUrl}`);
+    client = mqtt.connect(brokerUrl, options);
+
+    client.on('connect', () => {
+        console.log(`[MQTT] Connected (clientId: ${clientId})`);
+        client.subscribe(TOPIC_SENSOR, { qos: 1 }, (err) => {
+            if (err) {
+                console.error('[MQTT] Subscribe error:', err.message);
+            } else {
+                console.log(`[MQTT] Subscribed to: ${TOPIC_SENSOR}`);
+            }
+        });
+    });
+
+    client.on('message', async (topic, message) => {
+        const deviceId = extractDeviceId(topic);
+        const payload = parsePayload(message);
+
+        if (!payload) {
+            console.warn(`[MQTT] Unparseable message on topic "${topic}": ${message.toString()}`);
+            return;
+        }
+
+        console.log(`[MQTT] Received from ${deviceId}:`, payload);
+
+        try {
+            const id = await insertReading(deviceId, payload);
+            console.log(`[DB]   Saved reading #${id} for device "${deviceId}"`);
+            // broadcast to SSE clients (lazy require to avoid circular dep)
+            try { require('../index').broadcastReading(deviceId, payload); } catch (_) { }
+        } catch (err) {
+            console.error('[DB]   Failed to save reading:', err.message);
+        }
+    });
+
+    client.on('reconnect', () => console.log('[MQTT] Reconnecting…'));
+    client.on('offline', () => console.log('[MQTT] Client offline'));
+    client.on('error', (err) => console.error('[MQTT] Error:', err.message));
+
+    return client;
+}
+
+function getClient() {
+    return client;
+}
+
+module.exports = { connect, getClient };

@@ -1,0 +1,24 @@
+{
+  "name": "water-level-server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "simulate": "node simulate.js",
+    "simulate:both-low": "node simulate.js --scenario both_low",
+    "simulate:both-high": "node simulate.js --scenario both_high",
+    "simulate:min-high-max-low": "node simulate.js --scenario min_high_max_low"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "mqtt": "^5.15.1",
+    "sqlite3": "^6.0.1"
+  }
+}

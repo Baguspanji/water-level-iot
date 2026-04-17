@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Water Level Monitor</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            min-height: 100vh;
+        }
+
+        header {
+            background: #1e293b;
+            border-bottom: 1px solid #334155;
+            padding: .9rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        header h1 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #38bdf8;
+        }
+
+        header h1 span {
+            color: #64748b;
+            font-weight: 400;
+            font-size: .85rem;
+            margin-left: .4rem;
+        }
+
+        #conn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: .8rem;
+            color: #94a3b8;
+        }
+
+        #dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: #ef4444;
+            transition: background .3s;
+        }
+
+        #dot.ok {
+            background: #22c55e;
+        }
+
+        main {
+            padding: 1.25rem;
+            max-width: 1500px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        /* ── Device grid ── */
+        #device-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+            gap: 1rem;
+        }
+
+        .dcard {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 1rem 1.1rem;
+            cursor: pointer;
+            transition: border-color .2s;
+        }
+
+        .dcard:hover,
+        .dcard.active {
+            border-color: #38bdf8;
+        }
+
+        .dcard-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: .5rem;
+        }
+
+        .dcard-id {
+            font-weight: 600;
+            font-size: .95rem;
+        }
+
+        .dcard-name {
+            font-size: .78rem;
+            color: #94a3b8;
+            margin-top: 1px;
+        }
+
+        .edit-btn {
+            background: none;
+            border: 1px solid #334155;
+            color: #94a3b8;
+            border-radius: 6px;
+            padding: 2px 8px;
+            font-size: .72rem;
+            cursor: pointer;
+            transition: border-color .2s, color .2s;
+            white-space: nowrap;
+        }
+
+        .edit-btn:hover {
+            border-color: #38bdf8;
+            color: #38bdf8;
+        }
+
+        .loc-line {
+            font-size: .75rem;
+            color: #64748b;
+            margin-bottom: .7rem;
+            min-height: 1rem;
+        }
+
+        .loc-line a {
+            color: #38bdf8;
+            text-decoration: none;
+        }
+
+        .loc-line a:hover {
+            text-decoration: underline;
+        }
+
+        .sensor-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: .35rem;
+        }
+
+        .sensor-label {
+            font-size: .8rem;
+            color: #94a3b8;
+        }
+
+        .sensor-val {
+            font-size: .82rem;
+            font-weight: 600;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 1px 7px;
+            border-radius: 999px;
+            font-size: .7rem;
+            font-weight: 700;
+            margin-left: 5px;
+        }
+
+        .badge.HIGH {
+            background: #ef444420;
+            color: #f87171;
+        }
+
+        .badge.LOW {
+            background: #22c55e20;
+            color: #4ade80;
+        }
+
+        .badge.online {
+            background: #22c55e25;
+            color: #4ade80;
+        }
+
+        .badge.offline {
+            background: #64748b25;
+            color: #94a3b8;
+        }
+
+        .last-seen {
+            font-size: .72rem;
+            color: #475569;
+            margin-top: .55rem;
+        }
+
+        /* offline card dimming */
+        .dcard.offline {
+            opacity: .65;
+        }
+
+        .dcard.offline .dcard-id {
+            color: #94a3b8;
+        }
+
+        /* ── Map full row ── */
+        #map-panel {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 1.1rem;
+        }
+
+        #map {
+            height: 280px;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .map-legend {
+            display: flex;
+            gap: 1.2rem;
+            margin-top: .75rem;
+            flex-wrap: wrap;
+        }
+
+        .map-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: .75rem;
+            color: #94a3b8;
+        }
+
+        .dot-legend {
+            width: 11px;
+            height: 11px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            flex-shrink: 0;
+        }
+
+        /* ── Bottom panel ── */
+        #bottom {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.25rem;
+        }
+
+        @media (max-width: 900px) {
+            #bottom {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 1.1rem;
+        }
+
+        .panel-title {
+            font-size: .95rem;
+            font-weight: 600;
+            color: #f1f5f9;
+            margin-bottom: .9rem;
+        }
+
+        #chart-sub {
+            font-size: .82rem;
+            color: #38bdf8;
+            margin-bottom: .9rem;
+        }
+
+        .chart-limits {
+            display: flex;
+            gap: .4rem;
+            margin-bottom: .9rem;
+        }
+
+        .chart-limits button {
+            background: #334155;
+            border: 1px solid #475569;
+            color: #cbd5e1;
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-size: .75rem;
+            cursor: pointer;
+        }
+
+        .chart-limits button.active,
+        .chart-limits button:hover {
+            background: #38bdf8;
+            color: #0f172a;
+            border-color: #38bdf8;
+        }
+
+        .chart-wrap {
+            position: relative;
+            height: 280px;
+        }
+
+        #no-data {
+            text-align: center;
+            color: #475569;
+            padding: 3rem 0;
+            display: none;
+            font-size: .85rem;
+        }
+
+
+        /* ── Modal ── */
+        #modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: #00000080;
+            z-index: 999;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #modal-overlay.open {
+            display: flex;
+        }
+
+        #modal {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 14px;
+            padding: 1.5rem;
+            width: 100%;
+            max-width: 420px;
+            position: relative;
+        }
+
+        #modal h2 {
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            color: #f1f5f9;
+        }
+
+        .form-group {
+            margin-bottom: .85rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: .8rem;
+            color: #94a3b8;
+            margin-bottom: 4px;
+        }
+
+        .form-group input {
+            width: 100%;
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: #e2e8f0;
+            border-radius: 8px;
+            padding: .45rem .7rem;
+            font-size: .875rem;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #38bdf8;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: .75rem;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: .6rem;
+            margin-top: 1rem;
+        }
+
+        .btn-cancel {
+            background: #334155;
+            border: none;
+            color: #cbd5e1;
+            padding: .45rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: .875rem;
+        }
+
+        .btn-save {
+            background: #38bdf8;
+            border: none;
+            color: #0f172a;
+            padding: .45rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: .875rem;
+        }
+
+        .btn-save:hover {
+            background: #7dd3fc;
+        }
+
+        #modal-close {
+            position: absolute;
+            top: .9rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            color: #64748b;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>💧 Water Level Monitor <span>Real-time Dashboard</span></h1>
+        <div id="conn"><span id="dot"></span><span id="conn-label">Connecting…</span></div>
+    </header>
+
+    <main>
+        <div id="device-grid"></div>
+
+        <!-- Chart full-width -->
+        <div id="map-panel">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:.9rem;flex-wrap:wrap;gap:.5rem">
+                <div>
+                    <div class="panel-title" style="margin-bottom:.2rem">📈 Sensor History</div>
+                    <div id="chart-sub">— pilih perangkat —</div>
+                </div>
+                <div class="chart-limits" style="margin-bottom:0">
+                    <button data-limit="20" class="active">20</button>
+                    <button data-limit="50">50</button>
+                    <button data-limit="100">100</button>
+                </div>
+            </div>
+            <div id="no-data">Tidak ada data untuk perangkat ini.</div>
+            <div class="chart-wrap"><canvas id="sensorChart"></canvas></div>
+        </div>
+
+        <div id="bottom">
+            <div class="panel">
+                <div class="panel-title">🗺️ Monitoring Lokasi Perangkat</div>
+                <div id="map"></div>
+                <div class="map-legend">
+                    <div class="map-legend-item">
+                        <div class="dot-legend" style="background:#ef4444"></div> Kedua sensor HIGH
+                    </div>
+                    <div class="map-legend-item">
+                        <div class="dot-legend" style="background:#f59e0b"></div> Sensor MIN HIGH
+                    </div>
+                    <div class="map-legend-item">
+                        <div class="dot-legend" style="background:#22c55e"></div> Normal (LOW)
+                    </div>
+                    <div class="map-legend-item">
+                        <div class="dot-legend" style="background:#475569"></div> Offline
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel" style="overflow-y:auto;max-height:420px">
+                <div class="panel-title">📋 Log Perangkat Aktif</div>
+                <div id="log-list" style="display:flex;flex-direction:column;gap:.5rem;font-size:.8rem;color:#94a3b8">
+                    <span style="color:#475569">Menunggu data…</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Edit device modal -->
+    <div id="modal-overlay">
+        <div id="modal">
+            <button id="modal-close">✕</button>
+            <h2>Edit Perangkat</h2>
+            <input type="hidden" id="f-device-id" />
+            <div class="form-group">
+                <label>Nama Perangkat</label>
+                <input type="text" id="f-name" placeholder="cth: Pos Pantau Sungai A" />
+            </div>
+            <div class="form-group">
+                <label>Lokasi / Keterangan</label>
+                <input type="text" id="f-location" placeholder="cth: Jembatan Barat, Kab. Xxx" />
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Latitude</label>
+                    <input type="number" id="f-lat" step="any" placeholder="-6.200000" />
+                </div>
+                <div class="form-group">
+                    <label>Longitude</label>
+                    <input type="number" id="f-lng" step="any" placeholder="106.816666" />
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" id="modal-cancel">Batal</button>
+                <button class="btn-save" id="modal-save">Simpan</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const THRESHOLD = 300;
+        const OFFLINE_MS = 30_000; // device is offline if no data for 30 s
+        const deviceMap = {};
+        let activeDevice = null;
+        let chartLimit = 20;
+
+        // ── Map ────────────────────────────────────────────────────────────
+        const leafMap = L.map('map', { zoomControl: true }).setView([-2.5, 118], 4);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors', maxZoom: 18,
+        }).addTo(leafMap);
+
+        const markers = {};
+
+        function markerColor(d) {
+            if (!d || !isOnline(d)) return '#475569';
+            if (d.sensor_min_status === 'HIGH' && d.sensor_max_status === 'HIGH') return '#ef4444';
+            if (d.sensor_min_status === 'HIGH') return '#f59e0b';
+            return '#22c55e';
+        }
+
+        function updateMarker(d) {
+            if (!d.lat || !d.lng) return;
+            const col = markerColor(d);
+            const online = isOnline(d);
+            const pulse = online ? `box-shadow:0 0 0 3px ${col}40,0 0 8px ${col}60` : '';
+            const icon = L.divIcon({
+                className: '',
+                html: `<div style="width:14px;height:14px;border-radius:50%;background:${col};border:2px solid #fff;${pulse}"></div>`,
+                iconSize: [14, 14], iconAnchor: [7, 7],
+            });
+            if (markers[d.device_id]) {
+                markers[d.device_id].setLatLng([d.lat, d.lng]).setIcon(icon);
+            } else {
+                markers[d.device_id] = L.marker([d.lat, d.lng], { icon }).addTo(leafMap);
+                markers[d.device_id].bindPopup('');
+            }
+            const statusLabel = online ? '🟢 Online' : '🔴 Offline';
+            markers[d.device_id].setPopupContent(
+                `<b>${d.name || d.device_id}</b> <span style="font-size:.8em">${statusLabel}</span><br>
+     ${d.location || ''}<br>
+     <small>MIN: ${d.sensor_min ?? '—'} <b>${d.sensor_min_status || ''}</b></small><br>
+     <small>MAX: ${d.sensor_max ?? '—'} <b>${d.sensor_max_status || ''}</b></small><br>
+     <small style="color:#888">${d.received_at ? fmt(d.received_at) : ''}</small>`
+            );
+        }
+
+        function fitMap() {
+            const pts = Object.values(markers).map(m => m.getLatLng()).filter(Boolean);
+            if (pts.length) leafMap.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 13 });
+        }
+
+        // ── Chart ──────────────────────────────────────────────────────────
+        const ctx = document.getElementById('sensorChart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    { label: 'Sensor MIN', data: [], borderColor: '#38bdf8', backgroundColor: '#38bdf820', tension: .3, fill: false, pointRadius: 3 },
+                    { label: 'Sensor MAX', data: [], borderColor: '#f59e0b', backgroundColor: '#f59e0b20', tension: .3, fill: false, pointRadius: 3 },
+                ],
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, animation: { duration: 200 },
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { labels: { color: '#94a3b8', boxWidth: 12 } },
+                    tooltip: {
+                        backgroundColor: '#1e293b', titleColor: '#f1f5f9', bodyColor: '#94a3b8',
+                        borderColor: '#334155', borderWidth: 1,
+                        callbacks: { afterLabel: i => `Status: ${i.raw > THRESHOLD ? '🔴 HIGH' : '🟢 LOW'}` },
+                    },
+                },
+                scales: {
+                    x: { ticks: { color: '#64748b', maxRotation: 45, font: { size: 10 } }, grid: { color: '#1e3050' } },
+                    y: {
+                        ticks: { color: '#64748b' }, grid: { color: '#334155' },
+                        title: { display: true, text: 'Nilai Sensor (raw)', color: '#64748b', font: { size: 11 } }
+                    },
+                },
+            },
+        });
+
+        // ── Helpers ────────────────────────────────────────────────────────
+        function isOnline(d) {
+            if (!d?.received_at) return false;
+            return (Date.now() - new Date(d.received_at).getTime()) < OFFLINE_MS;
+        }
+
+        function fmt(dt) {
+            return new Date(dt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+        function badge(s) {
+            return s ? `<span class="badge ${s}">${s}</span>` : '';
+        }
+        function statusBadge(d) {
+            const on = isOnline(d);
+            return `<span class="badge ${on ? 'online' : 'offline'}">${on ? '● Online' : '○ Offline'}</span>`;
+        }
+
+        // ── Device cards ───────────────────────────────────────────────────
+        function renderCards() {
+            const grid = document.getElementById('device-grid');
+            grid.innerHTML = '';
+            const ids = Object.keys(deviceMap);
+            if (!ids.length) {
+                grid.innerHTML = '<p style="color:#475569;font-size:.85rem">Menunggu data…</p>';
+                return;
+            }
+            for (const id of ids) {
+                const d = deviceMap[id];
+                const card = document.createElement('div');
+                card.className = 'dcard' + (id === activeDevice ? ' active' : '');
+                card.dataset.id = id;
+
+                let locHtml = '';
+                if (d.lat && d.lng) {
+                    locHtml = `📍 <a href="https://maps.google.com/?q=${d.lat},${d.lng}" target="_blank">${d.location || `${d.lat}, ${d.lng}`}</a>`;
+                } else if (d.location) {
+                    locHtml = `📍 ${d.location}`;
+                }
+
+                card.innerHTML = `
+      <div class="dcard-head">
+        <div>
+          <div class="dcard-id">📡 ${d.name || id} ${statusBadge(d)}</div>
+          <div class="dcard-name">${id}</div>
+        </div>
+        <button class="edit-btn" data-edit="${id}">✏️ Edit</button>
+      </div>
+      <div class="loc-line">${locHtml}</div>
+      <div class="sensor-row">
+        <span class="sensor-label">Sensor MIN</span>
+        <span class="sensor-val">${d.sensor_min ?? '—'} ${badge(d.sensor_min_status)}</span>
+      </div>
+      <div class="sensor-row">
+        <span class="sensor-label">Sensor MAX</span>
+        <span class="sensor-val">${d.sensor_max ?? '—'} ${badge(d.sensor_max_status)}</span>
+      </div>
+      <div class="last-seen">Terakhir: ${d.received_at ? fmt(d.received_at) : '—'}</div>`;
+
+                if (!isOnline(d)) card.classList.add('offline');
+
+                card.addEventListener('click', e => { if (e.target.closest('[data-edit]')) return; selectDevice(id); });
+                card.querySelector('[data-edit]').addEventListener('click', e => { e.stopPropagation(); openModal(id); });
+                grid.appendChild(card);
+            }
+        }
+
+        // ── Chart ──────────────────────────────────────────────────────────
+        async function loadChart(deviceId) {
+            const res = await fetch(`/api/sensors/${encodeURIComponent(deviceId)}?limit=${chartLimit}`);
+            const json = await res.json();
+            const rows = (json.data || []).reverse();
+            document.getElementById('no-data').style.display = rows.length ? 'none' : 'block';
+            chart.data.labels = rows.map(r => fmt(r.received_at));
+            chart.data.datasets[0].data = rows.map(r => r.sensor_min);
+            chart.data.datasets[1].data = rows.map(r => r.sensor_max);
+            chart.update();
+        }
+
+        function selectDevice(id) {
+            activeDevice = id;
+            document.getElementById('chart-sub').textContent = deviceMap[id]?.name || id;
+            renderCards();
+            loadChart(id);
+            const d = deviceMap[id];
+            if (d?.lat && d?.lng) leafMap.setView([d.lat, d.lng], 13);
+        }
+
+        // ── SSE ────────────────────────────────────────────────────────────
+        function connectSSE() {
+            const es = new EventSource('/events');
+            es.onopen = () => { document.getElementById('dot').classList.add('ok'); document.getElementById('conn-label').textContent = 'Live'; };
+            es.onerror = () => { document.getElementById('dot').classList.remove('ok'); document.getElementById('conn-label').textContent = 'Reconnecting…'; };
+            es.onmessage = e => {
+                const d = JSON.parse(e.data);
+                deviceMap[d.device_id] = { ...(deviceMap[d.device_id] || {}), ...d };
+                renderCards();
+                updateMarker(deviceMap[d.device_id]);
+                pushLog(deviceMap[d.device_id]);
+                if (activeDevice === d.device_id) {
+                    const labels = chart.data.labels;
+                    labels.push(fmt(d.received_at));
+                    chart.data.datasets[0].data.push(d.sensor_min);
+                    chart.data.datasets[1].data.push(d.sensor_max);
+                    if (labels.length > chartLimit) { labels.shift(); chart.data.datasets[0].data.shift(); chart.data.datasets[1].data.shift(); }
+                    chart.update('none');
+                }
+            };
+        }
+
+        // ── Log panel ──────────────────────────────────────────────────────
+        const logEntries = []; // max 50
+
+        function pushLog(d) {
+            logEntries.unshift({
+                device_id: d.device_id,
+                name: d.name,
+                sensor_min: d.sensor_min,
+                sensor_min_status: d.sensor_min_status,
+                sensor_max: d.sensor_max,
+                sensor_max_status: d.sensor_max_status,
+                time: d.received_at,
+            });
+            if (logEntries.length > 50) logEntries.pop();
+            renderLog();
+        }
+
+        function renderLog() {
+            const el = document.getElementById('log-list');
+            if (!logEntries.length) { el.innerHTML = '<span style="color:#475569">Menunggu data…</span>'; return; }
+            el.innerHTML = logEntries.map(e => `
+    <div style="border-left:2px solid #334155;padding:.3rem .6rem;line-height:1.6">
+      <span style="color:#38bdf8;font-weight:600">${e.name || e.device_id}</span>
+      <span style="color:#64748b;margin-left:6px">${fmt(e.time)}</span><br>
+      MIN <b>${e.sensor_min}</b>${badge(e.sensor_min_status)}
+      &nbsp; MAX <b>${e.sensor_max}</b>${badge(e.sensor_max_status)}
+    </div>`).join('');
+        }
+
+        // ── Periodic offline check (every 5s) ─────────────────────────────
+        setInterval(() => {
+            for (const id of Object.keys(deviceMap)) updateMarker(deviceMap[id]);
+            renderCards();
+        }, 5000);
+        document.querySelectorAll('.chart-limits button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.chart-limits button').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                chartLimit = parseInt(btn.dataset.limit);
+                if (activeDevice) loadChart(activeDevice);
+            });
+        });
+
+        // ── Modal ──────────────────────────────────────────────────────────
+        function openModal(deviceId) {
+            const d = deviceMap[deviceId] || {};
+            document.getElementById('f-device-id').value = deviceId;
+            document.getElementById('f-name').value = d.name || '';
+            document.getElementById('f-location').value = d.location || '';
+            document.getElementById('f-lat').value = d.lat || '';
+            document.getElementById('f-lng').value = d.lng || '';
+            document.getElementById('modal-overlay').classList.add('open');
+        }
+        function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+
+        document.getElementById('modal-cancel').addEventListener('click', closeModal);
+        document.getElementById('modal-close').addEventListener('click', closeModal);
+        document.getElementById('modal-overlay').addEventListener('click', e => {
+            if (e.target === document.getElementById('modal-overlay')) closeModal();
+        });
+
+        document.getElementById('modal-save').addEventListener('click', async () => {
+            const device_id = document.getElementById('f-device-id').value;
+            const body = {
+                name: document.getElementById('f-name').value.trim() || null,
+                location: document.getElementById('f-location').value.trim() || null,
+                lat: parseFloat(document.getElementById('f-lat').value) || null,
+                lng: parseFloat(document.getElementById('f-lng').value) || null,
+            };
+            const res = await fetch(`/api/devices/${encodeURIComponent(device_id)}`, {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+            });
+            const json = await res.json();
+            if (json.success) {
+                deviceMap[device_id] = { ...(deviceMap[device_id] || {}), ...json.data };
+                renderCards();
+                updateMarker(deviceMap[device_id]);
+                fitMap();
+                closeModal();
+            }
+        });
+
+        // ── Init ───────────────────────────────────────────────────────────
+        async function init() {
+            try {
+                const res = await fetch('/api/sensors/latest');
+                const json = await res.json();
+                for (const row of json.data || []) {
+                    deviceMap[row.device_id] = row;
+                    updateMarker(row);
+                }
+                renderCards();
+                fitMap();
+                const first = Object.keys(deviceMap)[0];
+                if (first) selectDevice(first);
+            } catch (e) { console.error('Init error', e); }
+            connectSSE();
+        }
+
+        init();
+    </script>
+</body>
+
+</html>
