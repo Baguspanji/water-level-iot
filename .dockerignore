@@ -1,3 +1,5 @@
+alert_water_level/
+mosquitto/
 node_modules/
 data/
 .env

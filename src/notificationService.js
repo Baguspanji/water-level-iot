@@ -54,6 +54,7 @@ async function sendAlert(deviceId, value, status) {
         body: `Device ${deviceId}: nilai sensor ${value} (${status})`,
       },
       data: {
+        type: 'alert',
         device_id: deviceId,
         value: String(value),
         status: status,
@@ -81,4 +82,39 @@ async function sendAlert(deviceId, value, status) {
   }
 }
 
-module.exports = { sendAlert, initializeFirebase };
+module.exports = { sendAlert, sendStatusUpdate, initializeFirebase };
+
+/**
+ * Send a silent FCM data-only message with current sensor status.
+ * No `notification` key = no system notification shown, app handles it silently.
+ *
+ * @param {string} deviceId
+ * @param {number} sensorMin
+ * @param {string} sensorMinStatus  'HIGH' | 'LOW'
+ * @param {number} sensorMax
+ * @param {string} sensorMaxStatus  'HIGH' | 'LOW'
+ */
+async function sendStatusUpdate(deviceId, sensorMin, sensorMinStatus, sensorMax, sensorMaxStatus) {
+  initializeFirebase();
+  try {
+    const message = {
+      data: {
+        type: 'status',
+        device_id: deviceId,
+        sensor_min: String(sensorMin),
+        sensor_min_status: sensorMinStatus,
+        sensor_max: String(sensorMax),
+        sensor_max_status: sensorMaxStatus,
+        timestamp: new Date().toISOString(),
+      },
+      android: {
+        priority: 'normal',
+      },
+      topic: 'water_alert',
+    };
+    const response = await admin.messaging().send(message);
+    console.log(`[FCM] Status update sent for ${deviceId}: ${response}`);
+  } catch (error) {
+    console.error(`[FCM] Failed to send status update for ${deviceId}:`, error.message);
+  }
+}

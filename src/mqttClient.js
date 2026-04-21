@@ -1,6 +1,6 @@
 const mqtt = require('mqtt');
 const { insertReading } = require('./database');
-const { sendAlert } = require('./notificationService');
+const { sendAlert, sendStatusUpdate } = require('./notificationService');
 
 let client = null;
 const TOPIC_SENSOR = process.env.MQTT_TOPIC_SENSOR || 'water/sensor/#';
@@ -86,7 +86,14 @@ function connect() {
             const id = await insertReading(deviceId, payload);
             console.log(`[DB]   Saved reading #${id} for device "${deviceId}"`);
 
-            // Check if alert threshold exceeded
+            // Always send silent FCM status update so the app shows realtime data.
+            sendStatusUpdate(
+                deviceId,
+                payload.sensor_min, payload.sensor_min_status,
+                payload.sensor_max, payload.sensor_max_status
+            ).catch(err => console.error('[STATUS] Failed to send status update:', err.message));
+
+            // Check if alert threshold exceeded — send notification.
             if (payload.sensor_min > THRESHOLD) {
                 sendAlert(deviceId, payload.sensor_min, 'HIGH').catch(err =>
                     console.error('[ALERT] Failed to send alert for sensor_min:', err.message)
