@@ -1,6 +1,7 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/foundation.dart';
+import 'sensor_status_service.dart';
 
 class NotificationService {
   // Notification constants
@@ -43,48 +44,44 @@ class NotificationService {
       debugPrint('Error subscribing to topic: $e');
     }
 
-    // Initialize local notifications for foreground
+    // Initialize local notifications
     try {
       await _initLocalNotifications();
-      debugPrint('Local notifications initialized successfully');
     } catch (e) {
       debugPrint('Error initializing local notifications: $e');
     }
 
-    // Handle foreground messages
-    try {
-      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-        debugPrint('Foreground message: ${message.notification?.title}');
-        _showLocalNotification(message);
-      });
-      debugPrint('Foreground message listener registered');
-    } catch (e) {
-      debugPrint('Error registering foreground message listener: $e');
-    }
+    // Foreground messages
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      debugPrint('[FCM] Foreground: type=${message.data['type']}');
+      _handleMessage(message);
+    });
 
-    // Handle message when app is terminated but just opened
-    try {
-      FirebaseMessaging.instance.getInitialMessage().then((message) {
-        if (message != null) {
-          debugPrint(
-            'App opened from terminated state: ${message.notification?.title}',
-          );
-        }
-      });
-      debugPrint('Initial message handler registered');
-    } catch (e) {
-      debugPrint('Error registering initial message handler: $e');
-    }
+    // App opened from background by tapping notification
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      debugPrint('[FCM] Opened from background: type=${message.data['type']}');
+      sensorStatusService.updateFromFcmData(message.data);
+    });
 
-    // Handle notification tap
-    try {
-      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-        debugPrint('Notification tapped: ${message.notification?.title}');
-      });
-      debugPrint('Message opened app listener registered');
-    } catch (e) {
-      debugPrint('Error registering message opened app listener: $e');
+    // App opened from terminated state
+    FirebaseMessaging.instance.getInitialMessage().then((message) {
+      if (message != null) {
+        debugPrint('[FCM] Initial message: type=${message.data['type']}');
+        sensorStatusService.updateFromFcmData(message.data);
+      }
+    });
+  }
+
+  /// Route a message:
+  /// - `type == 'status'` → update UI silently, no notification
+  /// - `type == 'alert'`  → update UI + show local notification
+  static void _handleMessage(RemoteMessage message) {
+    final type = message.data['type'];
+    sensorStatusService.updateFromFcmData(message.data);
+    if (type == 'alert') {
+      _showLocalNotification(message);
     }
+    // type == 'status' → silent, UI already updated above
   }
 
   static Future<void> _initLocalNotifications() async {
@@ -104,7 +101,7 @@ class NotificationService {
       description: _channelDescription,
       importance: Importance.high,
       enableVibration: true,
-      sound: RawResourceAndroidNotificationSound('notification'),
+      sound: RawResourceAndroidNotificationSound('alert_sound'),
     );
 
     await _flutterLocalNotificationsPlugin
@@ -114,27 +111,41 @@ class NotificationService {
         ?.createNotificationChannel(channel);
   }
 
+  static Future<void> showAlertNotification({
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    await _flutterLocalNotificationsPlugin.show(
+      DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      title,
+      body,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          _channelId,
+          _channelName,
+          channelDescription: _channelDescription,
+          importance: Importance.high,
+          priority: Priority.high,
+          showWhen: true,
+          enableVibration: true,
+          sound: RawResourceAndroidNotificationSound('alert_sound'),
+        ),
+      ),
+      payload: payload,
+    );
+  }
+
   static Future<void> _showLocalNotification(RemoteMessage message) async {
     final notification = message.notification;
-
-    if (notification != null) {
-      await _flutterLocalNotificationsPlugin.show(
-        notification.hashCode,
-        notification.title,
-        notification.body,
-        NotificationDetails(
-          android: AndroidNotificationDetails(
-            _channelId,
-            _channelName,
-            channelDescription: _channelDescription,
-            importance: Importance.high,
-            priority: Priority.high,
-            showWhen: true,
-            enableVibration: true,
-          ),
-        ),
-        payload: message.data.toString(),
-      );
-    }
+    final title =
+        notification?.title ??
+        '⚠️ Sensor Bahaya! Device ${message.data['device_id'] ?? ''}';
+    final body = notification?.body ?? message.data['status'] ?? '';
+    await showAlertNotification(
+      title: title,
+      body: body,
+      payload: message.data.toString(),
+    );
   }
 }
