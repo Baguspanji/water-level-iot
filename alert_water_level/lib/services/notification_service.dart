@@ -40,8 +40,10 @@ class NotificationService {
     try {
       await _firebaseMessaging.subscribeToTopic(_topicName);
       debugPrint('Subscribed to $_topicName topic');
+      sensorStatusService.markConnected();
     } catch (e) {
       debugPrint('Error subscribing to topic: $e');
+      sensorStatusService.markDisconnected();
     }
 
     // Initialize local notifications
@@ -86,7 +88,7 @@ class NotificationService {
 
   static Future<void> _initLocalNotifications() async {
     const AndroidInitializationSettings androidInitSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+        AndroidInitializationSettings('@drawable/ic_notification');
 
     const InitializationSettings initSettings = InitializationSettings(
       android: androidInitSettings,
@@ -125,6 +127,7 @@ class NotificationService {
           _channelId,
           _channelName,
           channelDescription: _channelDescription,
+          icon: '@drawable/ic_notification',
           importance: Importance.high,
           priority: Priority.high,
           showWhen: true,
@@ -138,10 +141,15 @@ class NotificationService {
 
   static Future<void> _showLocalNotification(RemoteMessage message) async {
     final notification = message.notification;
-    final title =
-        notification?.title ??
-        '⚠️ Sensor Bahaya! Device ${message.data['device_id'] ?? ''}';
-    final body = notification?.body ?? message.data['status'] ?? '';
+    final deviceId = message.data['device_id'] ?? '';
+    final value = message.data['value'] ?? '';
+    final status = message.data['status'] ?? '';
+
+    final title = notification?.title ?? '⚠️ Sensor Bahaya! Device $deviceId';
+    final body =
+        notification?.body ??
+        (value.isNotEmpty ? 'Nilai sensor: $value ($status)' : status);
+
     await showAlertNotification(
       title: title,
       body: body,
